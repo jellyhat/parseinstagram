@@ -6,16 +6,26 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.support.annotation.NonNull;
+import android.support.design.internal.BottomNavigationItemView;
+import android.support.design.widget.BottomNavigationView;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentManager;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import com.example.parseinstagram.fragments.ComposeFragment;
+import com.example.parseinstagram.fragments.PostsFragment;
+import com.example.parseinstagram.fragments.ProfileFragment;
 import com.parse.FindCallback;
 import com.parse.Parse;
 import com.parse.ParseException;
@@ -29,18 +39,16 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
     private final String TAG = "MainActivity";
-    private EditText etDescription;
-    private Button btnCaptureImage;
-    private ImageView ivPostImage;
-    private Button btnSubmit;
     private Button btnLogout;
     public final String APP_TAG = "MyCustomApp";
     public final static int CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE = 1034;
     public String photoFileName = "photo.jpg";
-    File photoFile;
+
+    private BottomNavigationView bottomNavigationView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        final FragmentManager fragmentManager = getSupportFragmentManager();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         btnLogout = findViewById(R.id.btnLogout);
@@ -54,116 +62,41 @@ public class MainActivity extends AppCompatActivity {
                 finish();
             }
         });
-        etDescription = findViewById(R.id.etDescription);
-        btnCaptureImage = findViewById(R.id.btnCaptureImagine);
-        ivPostImage = findViewById(R.id.ivSubmitImage);
-        btnSubmit = findViewById(R.id.btnSubmit);
-
-        btnCaptureImage.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                launchCamera();
-            }
-        });
+        bottomNavigationView = findViewById(R.id.bottom_navigation);
 
         //queryPosts();
-        btnSubmit.setOnClickListener(new View.OnClickListener(){
-
-            public void onClick(View view){
-                String description = etDescription.getText().toString();
-                ParseUser user = ParseUser.getCurrentUser();
-                if(photoFile == null || ivPostImage.getDrawable() == null){
-                    Toast.makeText(MainActivity.this, "You did not put a photo!", Toast.LENGTH_SHORT).show();
-                }
-                savePost(description, user, photoFile);
-            }
-        });
-    }
-
-    public void launchCamera() {
-        // create Intent to take a picture and return control to the calling application
-        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        // Create a File reference to access to future access
-        photoFile = getPhotoFileUri(photoFileName);
-
-        // wrap File object into a content provider
-        // required for API >= 24
-        // See https://guides.codepath.com/android/Sharing-Content-with-Intents#sharing-files-with-api-24-or-higher
-        Uri fileProvider = FileProvider.getUriForFile(MainActivity.this, "com.codepath.fileprovider", photoFile);
-        intent.putExtra(MediaStore.EXTRA_OUTPUT, fileProvider);
-
-        // If you call startActivityForResult() using an intent that no app can handle, your app will crash.
-        // So as long as the result is not null, it's safe to use the intent.
-        if (intent.resolveActivity(getPackageManager()) != null) {
-            // Start the image capture intent to take photo
-            startActivityForResult(intent, CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE);
-        }
-    }
-
-    public File getPhotoFileUri(String fileName) {
-        // Get safe storage directory for photos
-        // Use `getExternalFilesDir` on Context to access package-specific directories.
-        // This way, we don't need to request external read/write runtime permissions.
-        File mediaStorageDir = new File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), APP_TAG);
-
-        // Create the storage directory if it does not exist
-        if (!mediaStorageDir.exists() && !mediaStorageDir.mkdirs()){
-            Log.d(APP_TAG, "failed to create directory");
-        }
-
-        // Return the file target for the photo based on filename
-        File file = new File(mediaStorageDir.getPath() + File.separator + fileName);
-
-        return file;
-    }
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE) {
-            if (resultCode == RESULT_OK) {
-                // by this point we have the camera photo on disk
-                Bitmap takenImage = BitmapFactory.decodeFile(photoFile.getAbsolutePath());
-                Bitmap resizedBitmap = BitmapScaler.scaleToFitWidth(takenImage, 200);
-                // RESIZE BITMAP, see section below
-                // Load the taken image into a preview\
-                ivPostImage.setImageBitmap(resizedBitmap);
-            } else { // Result was a failure
-                Toast.makeText(this, "Picture wasn't taken!", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
-
-    private void savePost(String description, ParseUser user, File photoFile){
-        Post post = new Post();
-        post.setKeyDescription(description);
-        post.setUser(user);
-        post.setImage(new ParseFile(photoFile));
-        post.saveInBackground(new SaveCallback() {
+        bottomNavigationView.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
             @Override
-            public void done(ParseException e) {
-                if(e != null){
-                    Log.d(TAG, "savePost error");
-                    return;
+            public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
+                Fragment fragment = new ComposeFragment();
+                switch (menuItem.getItemId()) {
+                    case R.id.action_home:
+                        //fragment = fragment1;
+                        fragment = new PostsFragment();
+                        //Toast.makeText(MainActivity.this, "Home", Toast.LENGTH_SHORT).show();
+                        break;
+                    case R.id.action_compose:
+                        //Toast.makeText(MainActivity.this, "Compose", Toast.LENGTH_SHORT).show();
+                        fragment = new ComposeFragment();
+                        break;
+                    case R.id.action_profile:
+                        fragment = new ProfileFragment();
+                        break;
+                        //Toast.makeText(MainActivity.this, "Profile", Toast.LENGTH_SHORT).show();
+                    default:
+                        //fragment = fragment3;
+                        fragment = new ComposeFragment();
+                        break;
                 }
-                Log.d(TAG, "Success");
-                etDescription.setText("");
-                ivPostImage.setImageResource(0);
+                fragmentManager.beginTransaction().replace(R.id.flContainer, fragment).commit();
+                return true;
             }
         });
+        bottomNavigationView.setSelectedItemId(R.id.action_compose);
     }
 
-    private void queryPosts(){
-        ParseQuery<Post> postQuery = new ParseQuery<Post>(Post.class);
-        postQuery.include(Post.KEY_USER);
-        postQuery.findInBackground(new FindCallback<Post>() {
-            @Override
-            public void done(List<Post> posts, ParseException e) {
-                if(e != null){
-                    Log.e(TAG, "Query Error");
-                    return;
-                }
-                for(int i =0; i < posts.size(); i++) {
-                    Log.d(TAG, "Post:" + posts.get(i).getKeyDescription() );
-                }
-            }
-        });
-    }
+
+
+
+
 }
